@@ -1,4 +1,9 @@
 import cv2, torch, platform, time
+from picamera2 import Picamera2
+
+picam2 = Picamera2()
+picam2.configure(picam2.create_preview_configuration(main={"format": 'XRGB8888', "size": (320, 320)}))
+picam2.start()
 
 model = torch.hub.load("ultralytics/yolov5", "yolov5n", pretrained=True, verbose=False)
 model.conf = 0.3                     # raise if you get many false positives
@@ -6,18 +11,13 @@ model.iou  = 0.45
 model.to('cpu')                      # Pi 3 has no CUDA
 model.eval()
 
-cap = cv2.VideoCapture(0, cv2.CAP_V4L2)   # PiCam or USB cam
-cap.set(cv2.CAP_PROP_FRAME_WIDTH,  320)   # keep frames small
-cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 320)
-
 t0 = time.time(); frames = 0
 while True:
-    ret, img = cap.read()
-    if not ret: break
+    img = picam2.capture_array()
     res  = model(img, size=320)
     cv2.imshow("YOLOv5n @320px - q to quit", res.render()[0])
     frames += 1
-    if cv2.waitKey(1) & 0xFF == ord('q'): break
+    cv2.waitKey(25)
 
-print(f"{frames/(time.time()-t0):.2f} FPS on", platform.uname().machine)
-cap.release() ; cv2.destroyAllWindows()
+#print(f"{frames/(time.time()-t0):.2f} FPS on", platform.uname().machine)
+cv2.destroyAllWindows()
